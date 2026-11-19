@@ -1,0 +1,38 @@
+import sys; sys.path.insert(0,'/tmp/e2e')
+from lib import Run
+r=Run(); r.open(); r.onboard(); pg=r.pg
+# ---- accounts ----
+pg.locator('nav.bottom button').nth(1).click(); pg.wait_for_timeout(300)
+for ty,name in [('بنك','CIB'),('بنك','بنك مصر'),('ادخار','صندوق الطوارئ'),('محفظة','فودافون كاش'),('محفظة','انستاباي')]:
+    pg.locator('.qa button', has_text='+ '+ty).first.click(); pg.wait_for_selector('.sheet')
+    pg.locator('.sheet input[type=text]').first.fill(name)
+    pg.locator('.sheet .btns .btn.primary').click(); pg.wait_for_timeout(400)
+print('accounts:', pg.locator('.row .title').all_inner_texts())
+print('currency options:', pg.evaluate("[...document.querySelectorAll('select')].flatMap(s=>[...s.options].map(o=>o.value)).filter(v=>/^[A-Z]{3}$/.test(v))"))
+pg.locator('.qa button', has_text='+ بنك').first.click(); pg.wait_for_selector('.sheet'); print('sheet currencies:', pg.locator('.sheet select').nth(1).locator('option').all_inner_texts()); pg.screenshot(path='/tmp/e2e/acc_sheet.png'); pg.evaluate("document.querySelectorAll('.scrim').forEach(x=>x.remove())")
+pg.wait_for_timeout(200)
+pg.screenshot(path='/tmp/e2e/accounts2.png', full_page=True)
+# ---- note ----
+r.ev("App.go('notes')"); pg.locator('.btn.primary', has_text='ملاحظة').first.click(); pg.wait_for_selector('.notepage')
+pg.fill('.np-title','قايمة الشراء والصوت')
+ed=pg.locator('.notepage .editor'); ed.click(); pg.keyboard.type('السطر الأول قبل الصورة'); pg.keyboard.press('Enter')
+with pg.expect_file_chooser() as fc: pg.locator('.np-tools button[title]').nth(6).click()
+fc.value.set_files('/tmp/e2e/red.png'); pg.wait_for_timeout(600)
+pg.keyboard.type('نص بعد الصورة'); pg.keyboard.press('Enter')
+pg.locator('.np-tools button').nth(8).click(); pg.wait_for_selector('.sheet')
+pg.locator('.sheet button', has_text='ابدأ التسجيل').first.click(); pg.wait_for_timeout(2200); pg.locator('.sheet button', has_text='⏹').first.click(); pg.wait_for_timeout(500)
+pg.screenshot(path='/tmp/e2e/dbg.png'); print(pg.locator('.sheet').inner_text()); pg.locator('.sheet .btns .btn.primary').last.click(); pg.wait_for_timeout(800)
+pg.keyboard.type('نص بعد التسجيل'); pg.wait_for_timeout(1800)
+print('order in DOM:', pg.evaluate("[...document.querySelector('.notepage .editor').children].map(c=>c.tagName+(c.className?'.'+c.className:'')+(c.querySelector&&c.querySelector('img')?'[img]':'')+':'+(c.textContent||'').slice(0,20))"))
+print('audio hydrated:', pg.evaluate("!!document.querySelector('.notepage .vn audio')?.src"))
+pg.screenshot(path='/tmp/e2e/notepage.png')
+pg.locator('.np-top .btn.primary').click(); pg.wait_for_timeout(500)
+print('stored html:', r.ev("App.S.notes[0].html"))
+print('attachments:', r.ev("App.S.notes[0].attachments.length"), 'files:', r.ev("App.S.files.length"))
+# reopen after reload
+pg.reload(); pg.wait_for_selector('header.top'); pg.wait_for_timeout(500)
+r.ev("App.go('notes')"); pg.locator('.note-card').first.click(); pg.wait_for_selector('.notepage'); pg.wait_for_timeout(600)
+print('after reload img loaded:', pg.evaluate("document.querySelector('.notepage img')?.naturalWidth"), 'audio src:', pg.evaluate("!!document.querySelector('.notepage .vn audio')?.src"))
+print('list meta:', end=' ')
+pg.locator('.np-top .iconbtn').first.click(); pg.wait_for_timeout(300); print(pg.locator('.note-card .small').last.inner_text())
+r.done()
